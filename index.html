@@ -66,10 +66,10 @@
         .leaflet-control.follow-me-control button:hover {
             transform: scale(1.1);
         }
-        .blue-dot {
+        .orange-dot {
             width: 24px;
             height: 24px;
-            background-color: #3B82F6;
+            background-color: #f97316;
             border: 2px solid white;
             border-radius: 50%;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
@@ -89,7 +89,7 @@
             <h2 class="text-xl font-bold mb-4 text-center">Share this Map</h2>
             <div class="flex items-center space-x-2 mb-4">
                 <input id="share-link-input" type="text" readonly class="flex-1 p-2 rounded-lg border border-gray-300 text-sm bg-gray-100 cursor-copy">
-                <button id="copy-btn" class="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                <button id="copy-btn" class="bg-orange-600 text-white p-2 rounded-lg hover:bg-orange-700 transition-colors">
                     Copy
                 </button>
             </div>
@@ -108,7 +108,7 @@
         <div id="map" class="h-[70vh] w-full"></div>
         
         <div id="controls-container" class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full justify-center">
-            <button id="share-btn" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+            <button id="share-btn" class="bg-orange-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-orange-700 transition-colors">
                 Generate Shareable Link
             </button>
             <button id="clear-btn" class="bg-red-500 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-red-600 transition-colors">
@@ -118,9 +118,9 @@
         
         <div class="leaflet-control follow-me-control" id="follow-me-control">
              <button id="follow-me-btn" title="Follow my location">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
-                    <path fill-rule="evenodd" d="M11.97 2.25a.75.75 0 0 0-.714-.725A6.75 6.75 0 0 0 5.25 9.75v.75a8.25 8.25 0 0 0 3.125 6.468L7.17 21.03a.75.75 0 0 0 1.11 1.004l.42-.464a.75.75 0 0 0 .09-.646l-.373-1.492a.75.75 0 0 0-.585-.561l-.641-.18c1.6-1.442 2.94-3.107 3.97-4.915a.75.75 0 0 0 .027-.75l-1.09-2.028a.75.75 0 0 0-.75-.386h-.146a.75.75 0 0 0-.573.294l-1.455 2.259a.75.75 0 0 0 .546 1.258l.758-.17a.75.75 0 0 0 .42-.646v-.75A5.25 5.25 0 0 1 12 4.5a.75.75 0 0 0 .75-.75V3A.75.75 0 0 0 11.97 2.25ZM12 6a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 12 6Z" clip-rule="evenodd" />
-                    <path class="fill-indigo-600" d="m15.657 14.536 2.259 1.455c.348.224.498.665.387 1.092l-1.09 2.028a.75.75 0 0 0 .028.75c1.03 1.808 2.37 3.473 3.97 4.915a.75.75 0 0 0-.585.56l-.64.18a.75.75 0 0 0-.561.585l-1.492.374a.75.75 0 0 0-.646.09l-.463-.42a.75.75 0 0 0-1.004-1.11l2.028-1.09a.75.75 0 0 0 .75-.028V12a.75.75 0 0 0-1.5 0v3.5a.75.75 0 0 0 .75.75Z" />
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#f97316" class="w-6 h-6">
+                    <path fill-rule="evenodd" d="M11.54 22.351a.75.75 0 0 1-.714-.725l-.707-11.47a.75.75 0 0 1 .439-.773l1.821-.497 1.821-.497a.75.75 0 0 1 .439.773l-.707 11.47a.75.75 0 0 1-.714.725ZM12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" clip-rule="evenodd" />
+                    <path d="M15.657 14.536 12 12l-3.657 2.536a.75.75 0 0 0 1.11 1.004l1.838-1.272a.75.75 0 0 1 .918 0l1.838 1.272a.75.75 0 0 0 1.11-1.004Z" />
                 </svg>
              </button>
         </div>
@@ -209,7 +209,7 @@
             userLocationMarker = L.marker([0, 0], {
                 icon: L.divIcon({
                     className: 'user-location-icon-container',
-                    html: `<div class="blue-dot"></div>`,
+                    html: `<div class="orange-dot"></div>`,
                     iconSize: [24, 24],
                     iconAnchor: [12, 12]
                 }),
@@ -296,13 +296,13 @@
                     const geojson = JSON.parse(data);
                     const loadedLayer = L.geoJSON(geojson, {
                          style: (feature) => {
-                            return { color: '#3B82F6', weight: 4, opacity: 0.8 };
+                            return { color: '#f97316', weight: 6, opacity: 0.9 };
                          },
                          pointToLayer: (geoJsonPoint, latlng) => {
                              return L.marker(latlng, {
                                  icon: L.divIcon({
                                      className: 'custom-marker-icon',
-                                     html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#3B82F6" class="w-8 h-8"><path fill-rule="evenodd" d="m11.54 22.351.07.074a.75.75 0 0 0 1.06 0l.07-.074c.412-.413 4.408-4.593 1.071-10.748L11.54 22.351ZM12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" clip-rule="evenodd" /></svg>`,
+                                     html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#f97316" class="w-8 h-8"><path fill-rule="evenodd" d="m11.54 22.351.07.074a.75.75 0 0 0 1.06 0l.07-.074c.412-.413 4.408-4.593 1.071-10.748L11.54 22.351ZM12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" clip-rule="evenodd" /></svg>`,
                                      iconSize: [32, 32],
                                      iconAnchor: [16, 32]
                                  })

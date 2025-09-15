@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farm Path Mapper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        #map {
+            flex-grow: 1;
+            width: 100%;
+            height: 70vh;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .leaflet-container .leaflet-control-attribution {
+            background: none;
+            color: #fff;
+            text-shadow: 1px 1px 2px #000;
+        }
+        .leaflet-draw-toolbar.leaflet-bar.leaflet-draw-toolbar-top {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .leaflet-draw-toolbar.leaflet-bar a {
+            padding: 0.5rem;
+            font-size: 1.5rem;
+        }
+        .share-modal {
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <!-- Share Modal -->
+    <div id="share-modal" class="share-modal hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+            <h2 class="text-xl font-bold mb-4 text-center">Share this Map</h2>
+            <div class="flex items-center space-x-2 mb-4">
+                <input id="share-link-input" type="text" readonly class="flex-1 p-2 rounded-lg border border-gray-300 text-sm bg-gray-100 cursor-copy">
+                <button id="copy-btn" class="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors">
+                    Copy
+                </button>
+            </div>
+            <p id="copy-message" class="text-green-600 text-center text-sm hidden">Link copied!</p>
+            <div class="flex justify-center mt-4">
+                <button id="close-modal-btn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div class="flex flex-col items-center w-full max-w-3xl mx-auto space-y-4">
+        <h1 class="text-4xl font-extrabold text-center text-gray-900">Farm Mapper</h1>
+        <p class="text-center text-gray-600">Draw a path or area, then share the link!</p>
+        
+        <div id="map" class="h-[70vh] w-full"></div>
+        
+        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full justify-center">
+            <button id="share-btn" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                Generate Shareable Link
+            </button>
+            <button id="clear-btn" class="bg-red-500 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-red-600 transition-colors">
+                Clear All Drawings
+            </button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script>
+        // Use the Inter font
+        document.body.style.fontFamily = "Inter, sans-serif";
+
+        const mapElement = document.getElementById('map');
+        const shareBtn = document.getElementById('share-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const shareModal = document.getElementById('share-modal');
+        const shareLinkInput = document.getElementById('share-link-input');
+        const copyBtn = document.getElementById('copy-btn');
+        const copyMessage = document.getElementById('copy-message');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        // Initialize the map centered on Australia
+        const map = L.map(mapElement).setView([-25.2744, 133.7751], 5);
+
+        // Add Esri World Imagery as the base map layer for satellite view
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, swisstopo, and the GIS User Community'
+        }).addTo(map);
+
+        // Initialize the drawing layers
+        const drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        // Initialize the draw control plugin
+        const drawControl = new L.Control.Draw({
+            edit: {
+                featureGroup: drawnItems
+            },
+            draw: {
+                polygon: {
+                    allowIntersection: false,
+                    showArea: true
+                },
+                polyline: true,
+                marker: true,
+                circle: false,
+                rectangle: false,
+                circlemarker: false
+            }
+        });
+        map.addControl(drawControl);
+
+        // Handle drawing events
+        map.on(L.Draw.Event.CREATED, function (event) {
+            const layer = event.layer;
+            drawnItems.addLayer(layer);
+        });
+        map.on(L.Draw.Event.EDITED, function (event) {
+            // No need to update URL here, will be handled by the share button
+        });
+        map.on(L.Draw.Event.DELETED, function (event) {
+            // No need to update URL here
+        });
+
+        // URL encoding and decoding logic
+        const loadFromUrl = () => {
+            const params = new URLSearchParams(window.location.search);
+            const compressedData = params.get('data');
+            if (compressedData) {
+                try {
+                    const data = atob(decodeURIComponent(compressedData));
+                    const geojson = JSON.parse(data);
+                    const loadedLayer = L.geoJSON(geojson);
+                    
+                    // Clear existing layers and add the new one
+                    drawnItems.clearLayers();
+                    loadedLayer.eachLayer(layer => {
+                        drawnItems.addLayer(layer);
+                    });
+                    
+                    // Fit the map view to the loaded features
+                    map.fitBounds(drawnItems.getBounds(), { padding: [50, 50] });
+                } catch (e) {
+                    console.error('Invalid URL data:', e);
+                }
+            }
+        };
+
+        // Event listeners for UI buttons
+        shareBtn.addEventListener('click', () => {
+            const geojson = drawnItems.toGeoJSON();
+            const data = JSON.stringify(geojson);
+            const compressedData = btoa(data);
+            const currentUrl = `${window.location.origin}${window.location.pathname}?data=${encodeURIComponent(compressedData)}`;
+            shareLinkInput.value = currentUrl;
+            shareModal.classList.remove('hidden');
+        });
+
+        clearBtn.addEventListener('click', () => {
+             drawnItems.clearLayers();
+        });
+
+        copyBtn.addEventListener('click', () => {
+            shareLinkInput.select();
+            document.execCommand('copy');
+            copyMessage.classList.remove('hidden');
+            setTimeout(() => {
+                copyMessage.classList.add('hidden');
+            }, 2000);
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            shareModal.classList.add('hidden');
+        });
+
+        // Initialize the app by loading any data from the URL
+        window.onload = loadFromUrl;
+    </script>
+</body>
+</html>

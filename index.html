@@ -69,7 +69,7 @@
         .orange-dot {
             width: 24px;
             height: 24px;
-            background-color: #f97316;
+            background-color: #FFD700;
             border: 2px solid white;
             border-radius: 50%;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
@@ -118,7 +118,7 @@
         
         <div class="leaflet-control follow-me-control" id="follow-me-control">
              <button id="follow-me-btn" title="Follow my location">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#f97316" class="w-6 h-6">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFD700" class="w-6 h-6">
                     <path fill-rule="evenodd" d="M11.54 22.351a.75.75 0 0 1-.714-.725l-.707-11.47a.75.75 0 0 1 .439-.773l1.821-.497 1.821-.497a.75.75 0 0 1 .439.773l-.707 11.47a.75.75 0 0 1-.714.725ZM12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" clip-rule="evenodd" />
                     <path d="M15.657 14.536 12 12l-3.657 2.536a.75.75 0 0 0 1.11 1.004l1.838-1.272a.75.75 0 0 1 .918 0l1.838 1.272a.75.75 0 0 0 1.11-1.004Z" />
                 </svg>
@@ -296,13 +296,13 @@
                     const geojson = JSON.parse(data);
                     const loadedLayer = L.geoJSON(geojson, {
                          style: (feature) => {
-                            return { color: '#f97316', weight: 6, opacity: 0.9 };
+                            return { color: '#FFD700', weight: 8, opacity: 0.9 };
                          },
                          pointToLayer: (geoJsonPoint, latlng) => {
                              return L.marker(latlng, {
                                  icon: L.divIcon({
                                      className: 'custom-marker-icon',
-                                     html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#f97316" class="w-8 h-8"><path fill-rule="evenodd" d="m11.54 22.351.07.074a.75.75 0 0 0 1.06 0l.07-.074c.412-.413 4.408-4.593 1.071-10.748L11.54 22.351ZM12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" clip-rule="evenodd" /></svg>`,
+                                     html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FFD700" stroke="#FFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-8 h-8"><path d="M12 21.35c-2.22-.92-5-2.78-5-7.35a5 5 0 0 1 10 0c0 4.57-2.78 6.43-5 7.35z"/><circle cx="12" cy="12" r="3" fill="#FFF" /></svg>`,
                                      iconSize: [32, 32],
                                      iconAnchor: [16, 32]
                                  })

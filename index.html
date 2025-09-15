@@ -74,19 +74,11 @@
             border-radius: 50%;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
         }
-        .blue-dot-heading {
-            width: 0;
-            height: 0;
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-bottom: 15px solid #3B82F6;
-            position: absolute;
-            top: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-            transform-origin: 50% 100%;
+        .title-editable {
+            cursor: pointer;
+            outline: none;
+            text-align: center;
         }
-        
     </style>
 </head>
 <body class="p-4">
@@ -110,8 +102,8 @@
 
     <!-- Main Application Container -->
     <div class="flex flex-col items-center w-full max-w-3xl mx-auto space-y-4">
-        <h1 class="text-4xl font-extrabold text-center text-gray-900">Farm Mapper</h1>
-        <p class="text-center text-gray-600" id="subheading-text">Draw a path or area, then share the link!</p>
+        <h1 id="main-title" class="text-4xl font-extrabold text-center text-gray-900 title-editable" contenteditable="false">Farm Mapper</h1>
+        <p class="text-center text-gray-600" id="subheading-text">Fitz Farming</p>
         
         <div id="map" class="h-[70vh] w-full"></div>
         
@@ -141,6 +133,7 @@
         document.body.style.fontFamily = "Inter, sans-serif";
 
         const mapElement = document.getElementById('map');
+        const mainTitle = document.getElementById('main-title');
         const subheadingText = document.getElementById('subheading-text');
         const controlsContainer = document.getElementById('controls-container');
         const shareBtn = document.getElementById('share-btn');
@@ -175,7 +168,8 @@
 
         if (isEditorView) {
             // Editor View
-            subheadingText.textContent = "Draw a path or area, then share the link!";
+            mainTitle.contentEditable = true;
+            subheadingText.textContent = "Fitz Farming";
             controlsContainer.classList.remove('hidden');
 
             const drawControl = new L.Control.Draw({
@@ -190,7 +184,7 @@
                         showArea: true
                     },
                     polyline: true,
-                    marker: false,
+                    marker: true,
                     circle: false,
                     rectangle: false,
                     circlemarker: false
@@ -207,7 +201,8 @@
             
         } else {
             // Viewer View
-            subheadingText.textContent = "Follow the path to your destination.";
+            mainTitle.contentEditable = false;
+            subheadingText.textContent = "Following the path to your destination.";
             controlsContainer.classList.add('hidden');
             mapElement.classList.add('map-fullscreen');
             
@@ -220,16 +215,6 @@
                 }),
             }).addTo(map);
 
-            const userHeadingMarker = L.marker([0,0], {
-                icon: L.divIcon({
-                    className: 'user-heading-icon-container',
-                    html: `<div class="blue-dot-heading"></div>`,
-                    iconSize: [16, 16],
-                    iconAnchor: [8, 16]
-                }),
-                rotationAngle: 0
-            }).addTo(map);
-            
             let watchingLocation = false;
             let watchId;
             function showUserLocation() {
@@ -246,17 +231,11 @@
                                 const { latitude, longitude } = position.coords;
                                 lastKnownPosition = [latitude, longitude];
                                 userLocationMarker.setLatLng(lastKnownPosition);
-                                userHeadingMarker.setLatLng(lastKnownPosition);
                                 
                                 if (isFollowing) {
                                     map.setView(lastKnownPosition, 17);
                                 }
                                 
-                                if (position.coords.heading !== null) {
-                                    userHeadingMarker.setRotationAngle(position.coords.heading);
-                                }
-                                
-                                subheadingText.textContent = "Following your location...";
                                 subheadingText.classList.remove('text-red-500');
                                 subheadingText.classList.add('text-gray-600');
                                 
@@ -305,17 +284,21 @@
         // URL encoding and decoding logic
         const loadFromUrl = () => {
             const compressedData = params.get('data');
+            const mapTitle = params.get('title');
+            
+            if (mapTitle) {
+                mainTitle.textContent = decodeURIComponent(mapTitle);
+            }
+
             if (compressedData) {
                 try {
                     const data = atob(decodeURIComponent(compressedData));
                     const geojson = JSON.parse(data);
                     const loadedLayer = L.geoJSON(geojson, {
                          style: (feature) => {
-                            // Default styles for viewer mode
                             return { color: '#3B82F6', weight: 4, opacity: 0.8 };
                          },
                          pointToLayer: (geoJsonPoint, latlng) => {
-                             // Use a custom marker for points
                              return L.marker(latlng, {
                                  icon: L.divIcon({
                                      className: 'custom-marker-icon',
@@ -346,7 +329,8 @@
             const geojson = drawnItems.toGeoJSON();
             const data = JSON.stringify(geojson);
             const compressedData = btoa(data);
-            const currentUrl = `${window.location.origin}${window.location.pathname}?data=${encodeURIComponent(compressedData)}`;
+            const title = mainTitle.textContent.trim();
+            const currentUrl = `${window.location.origin}${window.location.pathname}?data=${encodeURIComponent(compressedData)}&title=${encodeURIComponent(title)}`;
             shareLinkInput.value = currentUrl;
             shareModal.classList.remove('hidden');
         });

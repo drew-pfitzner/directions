@@ -44,6 +44,11 @@
         .share-modal {
             z-index: 1000;
         }
+        .map-fullscreen {
+            height: calc(100vh - 80px); /* Adjust height for heading */
+            border-radius: 0;
+            box-shadow: none;
+        }
     </style>
 </head>
 <body class="p-4">
@@ -68,11 +73,11 @@
     <!-- Main Application Container -->
     <div class="flex flex-col items-center w-full max-w-3xl mx-auto space-y-4">
         <h1 class="text-4xl font-extrabold text-center text-gray-900">Farm Mapper</h1>
-        <p class="text-center text-gray-600">Draw a path or area, then share the link!</p>
+        <p class="text-center text-gray-600" id="subheading-text">Draw a path or area, then share the link!</p>
         
         <div id="map" class="h-[70vh] w-full"></div>
         
-        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full justify-center">
+        <div id="controls-container" class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 w-full justify-center">
             <button id="share-btn" class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
                 Generate Shareable Link
             </button>
@@ -89,6 +94,8 @@
         document.body.style.fontFamily = "Inter, sans-serif";
 
         const mapElement = document.getElementById('map');
+        const subheadingText = document.getElementById('subheading-text');
+        const controlsContainer = document.getElementById('controls-container');
         const shareBtn = document.getElementById('share-btn');
         const clearBtn = document.getElementById('clear-btn');
         const shareModal = document.getElementById('share-modal');
@@ -96,6 +103,8 @@
         const copyBtn = document.getElementById('copy-btn');
         const copyMessage = document.getElementById('copy-message');
         const closeModalBtn = document.getElementById('close-modal-btn');
+        const params = new URLSearchParams(window.location.search);
+        const isEditorView = params.has('edit') || !params.has('data');
 
         // Initialize the map centered on Australia
         const map = L.map(mapElement).setView([-25.2744, 133.7751], 5);
@@ -109,55 +118,143 @@
         const drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
 
-        // Initialize the draw control plugin
-        const drawControl = new L.Control.Draw({
-            edit: {
-                featureGroup: drawnItems
-            },
-            draw: {
-                polygon: {
-                    allowIntersection: false,
-                    showArea: true
+        // User's location marker and heading
+        const userLocationMarker = L.marker([0, 0], {
+            icon: L.divIcon({
+                className: 'user-location-icon',
+                html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#3B82F6" class="w-6 h-6"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zM12 11.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            }),
+            rotationAngle: 0
+        }).addTo(map);
+
+        // Conditional logic for editor vs. viewer view
+        if (isEditorView) {
+            // Editor View
+            subheadingText.textContent = "Draw a path or area, then share the link!";
+            controlsContainer.classList.remove('hidden');
+
+            const drawControl = new L.Control.Draw({
+                edit: {
+                    featureGroup: drawnItems
                 },
-                polyline: true,
-                marker: true,
-                circle: false,
-                rectangle: false,
-                circlemarker: false
+                draw: {
+                    polygon: {
+                        allowIntersection: false,
+                        showArea: true
+                    },
+                    polyline: true,
+                    marker: true,
+                    circle: false,
+                    rectangle: false,
+                    circlemarker: false
+                }
+            });
+            map.addControl(drawControl);
+            
+            map.on(L.Draw.Event.CREATED, function (event) {
+                const layer = event.layer;
+                drawnItems.addLayer(layer);
+            });
+            map.on(L.Draw.Event.EDITED, function (event) { });
+            map.on(L.Draw.Event.DELETED, function (event) { });
+
+        } else {
+            // Viewer View
+            subheadingText.textContent = "Follow the path to your destination.";
+            controlsContainer.classList.add('hidden');
+            mapElement.classList.add('map-fullscreen');
+
+            let watchingLocation = false;
+            let watchId;
+            function showUserLocation() {
+                if (navigator.geolocation) {
+                    if (!watchingLocation) {
+                        watchingLocation = true;
+                        const options = {
+                            enableHighAccuracy: true,
+                            timeout: 5000,
+                            maximumAge: 0
+                        };
+                        watchId = navigator.geolocation.watchPosition(
+                            (position) => {
+                                const { latitude, longitude } = position.coords;
+                                userLocationMarker.setLatLng([latitude, longitude]);
+                                if (position.coords.heading !== null) {
+                                    userLocationMarker.setRotationAngle(position.coords.heading);
+                                }
+                                map.setView([latitude, longitude], 17);
+                                subheadingText.textContent = "Following your location...";
+                                subheadingText.classList.remove('text-red-500');
+                                subheadingText.classList.add('text-gray-600');
+                            },
+                            (error) => {
+                                console.error('Geolocation error:', `Code: ${error.code}, Message: ${error.message}`);
+                                if (error.code === 1) {
+                                    subheadingText.textContent = "Geolocation disabled by permissions policy.";
+                                } else {
+                                    subheadingText.textContent = `Geolocation failed: ${error.message}`;
+                                }
+                                subheadingText.classList.add('text-red-500');
+                                watchingLocation = false;
+                            },
+                            options
+                        );
+                    }
+                } else {
+                    subheadingText.textContent = "Geolocation is not supported by your browser.";
+                    subheadingText.classList.add('text-red-500');
+                }
             }
-        });
-        map.addControl(drawControl);
-
-        // Handle drawing events
-        map.on(L.Draw.Event.CREATED, function (event) {
-            const layer = event.layer;
-            drawnItems.addLayer(layer);
-        });
-        map.on(L.Draw.Event.EDITED, function (event) {
-            // No need to update URL here, will be handled by the share button
-        });
-        map.on(L.Draw.Event.DELETED, function (event) {
-            // No need to update URL here
-        });
-
+            showUserLocation();
+            
+            // Handle device orientation for heading
+            window.addEventListener('deviceorientation', function (event) {
+                if (event.alpha) {
+                    // Use a standard `alpha` value if available
+                    const heading = 360 - event.alpha; // Convert to compass heading
+                    userLocationMarker.setRotationAngle(heading);
+                } else if (event.webkitCompassHeading) {
+                    // Use WebKit specific heading for iOS
+                    userLocationMarker.setRotationAngle(event.webkitCompassHeading);
+                }
+            });
+        }
+        
         // URL encoding and decoding logic
         const loadFromUrl = () => {
-            const params = new URLSearchParams(window.location.search);
             const compressedData = params.get('data');
             if (compressedData) {
                 try {
                     const data = atob(decodeURIComponent(compressedData));
                     const geojson = JSON.parse(data);
-                    const loadedLayer = L.geoJSON(geojson);
+                    const loadedLayer = L.geoJSON(geojson, {
+                         style: (feature) => {
+                            // Default styles for viewer mode
+                            return { color: '#3B82F6', weight: 4, opacity: 0.8 };
+                         },
+                         pointToLayer: (geoJsonPoint, latlng) => {
+                             // Use a custom marker for points
+                             return L.marker(latlng, {
+                                 icon: L.divIcon({
+                                     className: 'custom-marker-icon',
+                                     html: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#3B82F6" class="w-8 h-8"><path fill-rule="evenodd" d="m11.54 22.351.07.074a.75.75 0 0 0 1.06 0l.07-.074c.412-.413 4.408-4.593 1.071-10.748L11.54 22.351ZM12 7.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" clip-rule="evenodd" /></svg>`,
+                                     iconSize: [32, 32],
+                                     iconAnchor: [16, 32]
+                                 })
+                             });
+                         }
+                    });
                     
-                    // Clear existing layers and add the new one
                     drawnItems.clearLayers();
                     loadedLayer.eachLayer(layer => {
                         drawnItems.addLayer(layer);
                     });
                     
-                    // Fit the map view to the loaded features
-                    map.fitBounds(drawnItems.getBounds(), { padding: [50, 50] });
+                    if (drawnItems.getBounds().isValid()) {
+                         map.fitBounds(drawnItems.getBounds(), { padding: [50, 50] });
+                    }
                 } catch (e) {
                     console.error('Invalid URL data:', e);
                 }

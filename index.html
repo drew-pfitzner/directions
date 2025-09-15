@@ -49,6 +49,44 @@
             border-radius: 0;
             box-shadow: none;
         }
+        .leaflet-control.follow-me-control {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: none;
+        }
+        .leaflet-control.follow-me-control button {
+            background-color: white;
+            padding: 0.75rem;
+            border-radius: 9999px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .leaflet-control.follow-me-control button:hover {
+            transform: scale(1.1);
+        }
+        .blue-dot {
+            width: 24px;
+            height: 24px;
+            background-color: #3B82F6;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+        }
+        .blue-dot-heading {
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 15px solid #3B82F6;
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            transform-origin: 50% 100%;
+        }
+        
     </style>
 </head>
 <body class="p-4">
@@ -85,6 +123,15 @@
                 Clear All Drawings
             </button>
         </div>
+        
+        <div class="leaflet-control follow-me-control" id="follow-me-control">
+             <button id="follow-me-btn" title="Follow my location">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                    <path fill-rule="evenodd" d="M11.97 2.25a.75.75 0 0 0-.714-.725A6.75 6.75 0 0 0 5.25 9.75v.75a8.25 8.25 0 0 0 3.125 6.468L7.17 21.03a.75.75 0 0 0 1.11 1.004l.42-.464a.75.75 0 0 0 .09-.646l-.373-1.492a.75.75 0 0 0-.585-.561l-.641-.18c1.6-1.442 2.94-3.107 3.97-4.915a.75.75 0 0 0 .027-.75l-1.09-2.028a.75.75 0 0 0-.75-.386h-.146a.75.75 0 0 0-.573.294l-1.455 2.259a.75.75 0 0 0 .546 1.258l.758-.17a.75.75 0 0 0 .42-.646v-.75A5.25 5.25 0 0 1 12 4.5a.75.75 0 0 0 .75-.75V3A.75.75 0 0 0 11.97 2.25ZM12 6a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 12 6Z" clip-rule="evenodd" />
+                    <path class="fill-indigo-600" d="m15.657 14.536 2.259 1.455c.348.224.498.665.387 1.092l-1.09 2.028a.75.75 0 0 0 .028.75c1.03 1.808 2.37 3.473 3.97 4.915a.75.75 0 0 0-.585.56l-.64.18a.75.75 0 0 0-.561.585l-1.492.374a.75.75 0 0 0-.646.09l-.463-.42a.75.75 0 0 0-1.004-1.11l2.028-1.09a.75.75 0 0 0 .75-.028V12a.75.75 0 0 0-1.5 0v3.5a.75.75 0 0 0 .75.75Z" />
+                </svg>
+             </button>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -103,6 +150,9 @@
         const copyBtn = document.getElementById('copy-btn');
         const copyMessage = document.getElementById('copy-message');
         const closeModalBtn = document.getElementById('close-modal-btn');
+        const followMeControl = document.getElementById('follow-me-control');
+        const followMeBtn = document.getElementById('follow-me-btn');
+
         const params = new URLSearchParams(window.location.search);
         const isEditorView = params.has('edit') || !params.has('data');
 
@@ -117,19 +167,12 @@
         // Initialize the drawing layers
         const drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
+        
+        // User's location marker
+        let userLocationMarker;
+        let lastKnownPosition;
+        let isFollowing = true;
 
-        // User's location marker and heading
-        const userLocationMarker = L.marker([0, 0], {
-            icon: L.divIcon({
-                className: 'user-location-icon',
-                html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#3B82F6" class="w-6 h-6"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zM12 11.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/></svg>',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-            }),
-            rotationAngle: 0
-        }).addTo(map);
-
-        // Conditional logic for editor vs. viewer view
         if (isEditorView) {
             // Editor View
             subheadingText.textContent = "Draw a path or area, then share the link!";
@@ -137,7 +180,9 @@
 
             const drawControl = new L.Control.Draw({
                 edit: {
-                    featureGroup: drawnItems
+                    featureGroup: drawnItems,
+                    edit: false,
+                    remove: false
                 },
                 draw: {
                     polygon: {
@@ -145,7 +190,7 @@
                         showArea: true
                     },
                     polyline: true,
-                    marker: true,
+                    marker: false,
                     circle: false,
                     rectangle: false,
                     circlemarker: false
@@ -159,13 +204,32 @@
             });
             map.on(L.Draw.Event.EDITED, function (event) { });
             map.on(L.Draw.Event.DELETED, function (event) { });
-
+            
         } else {
             // Viewer View
             subheadingText.textContent = "Follow the path to your destination.";
             controlsContainer.classList.add('hidden');
             mapElement.classList.add('map-fullscreen');
+            
+            userLocationMarker = L.marker([0, 0], {
+                icon: L.divIcon({
+                    className: 'user-location-icon-container',
+                    html: `<div class="blue-dot"></div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                }),
+            }).addTo(map);
 
+            const userHeadingMarker = L.marker([0,0], {
+                icon: L.divIcon({
+                    className: 'user-heading-icon-container',
+                    html: `<div class="blue-dot-heading"></div>`,
+                    iconSize: [16, 16],
+                    iconAnchor: [8, 16]
+                }),
+                rotationAngle: 0
+            }).addTo(map);
+            
             let watchingLocation = false;
             let watchId;
             function showUserLocation() {
@@ -180,14 +244,24 @@
                         watchId = navigator.geolocation.watchPosition(
                             (position) => {
                                 const { latitude, longitude } = position.coords;
-                                userLocationMarker.setLatLng([latitude, longitude]);
-                                if (position.coords.heading !== null) {
-                                    userLocationMarker.setRotationAngle(position.coords.heading);
+                                lastKnownPosition = [latitude, longitude];
+                                userLocationMarker.setLatLng(lastKnownPosition);
+                                userHeadingMarker.setLatLng(lastKnownPosition);
+                                
+                                if (isFollowing) {
+                                    map.setView(lastKnownPosition, 17);
                                 }
-                                map.setView([latitude, longitude], 17);
+                                
+                                if (position.coords.heading !== null) {
+                                    userHeadingMarker.setRotationAngle(position.coords.heading);
+                                }
+                                
                                 subheadingText.textContent = "Following your location...";
                                 subheadingText.classList.remove('text-red-500');
                                 subheadingText.classList.add('text-gray-600');
+                                
+                                followMeControl.style.display = isFollowing ? 'none' : 'block';
+
                             },
                             (error) => {
                                 console.error('Geolocation error:', `Code: ${error.code}, Message: ${error.message}`);
@@ -208,18 +282,24 @@
                 }
             }
             showUserLocation();
-            
-            // Handle device orientation for heading
-            window.addEventListener('deviceorientation', function (event) {
-                if (event.alpha) {
-                    // Use a standard `alpha` value if available
-                    const heading = 360 - event.alpha; // Convert to compass heading
-                    userLocationMarker.setRotationAngle(heading);
-                } else if (event.webkitCompassHeading) {
-                    // Use WebKit specific heading for iOS
-                    userLocationMarker.setRotationAngle(event.webkitCompassHeading);
-                }
+
+            map.on('dragstart', () => {
+                isFollowing = false;
+                followMeControl.style.display = 'block';
             });
+            map.on('zoomstart', () => {
+                isFollowing = false;
+                followMeControl.style.display = 'block';
+            });
+
+            followMeBtn.addEventListener('click', () => {
+                isFollowing = true;
+                if (lastKnownPosition) {
+                    map.setView(lastKnownPosition, 17);
+                }
+                followMeControl.style.display = 'none';
+            });
+
         }
         
         // URL encoding and decoding logic
